@@ -120,8 +120,12 @@ function CreateEscrowForm() {
           let ethValue = BigInt(0);
           if (!isUSDCToken) {
             const rawAmount = parseFloat(amountETH || "0.001");
-            // Use realistic testnet ETH value (e.g. capped for testnet if needed)
-            const safeAmount = isNaN(rawAmount) || rawAmount <= 0 ? "0.001" : String(rawAmount);
+            // Use realistic testnet ETH value (e.g. capped for testnet if needed).
+            // Note: plain String(rawAmount) breaks for very small numbers — JS
+            // switches to scientific notation (e.g. "1e-7"), which
+            // ethers.parseEther cannot parse. toFixed(18) always gives a plain
+            // decimal string.
+            const safeAmount = isNaN(rawAmount) || rawAmount <= 0 ? "0.001" : rawAmount.toFixed(18);
             ethValue = ethers.parseEther(safeAmount);
           }
 

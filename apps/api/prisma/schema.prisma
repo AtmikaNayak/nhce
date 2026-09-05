@@ -46,6 +46,12 @@ enum MilestoneStatus {
   PENDING_APPROVAL
   REVISION_REQUESTED
   COMPLETED
+  // Dispute resolved in the client's favor: the escrow contract has no
+  // refund function (only releaseMilestone, which pays the freelancer), so
+  // there is no real on-chain transfer — the funds simply stay unreleased
+  // in the vault. This just records that outcome. See
+  // migration 20260905010000_milestone_refunded_status.
+  REFUNDED
 }
 
 enum DisputeStatus {

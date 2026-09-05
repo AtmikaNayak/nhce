@@ -24,64 +24,39 @@ export default function NewJobPage() {
     setSubmitting(status);
     setError(null);
 
-    const newJobId = `job-${Date.now()}`;
+    const token = getAuthToken();
+    if (!token) {
+      setError("You need to sign in to create a job.");
+      setSubmitting(null);
+      return;
+    }
 
-    const formattedMilestones = values.milestones.map((m, idx) => ({
-      order: idx + 1,
+    // Milestones are created for real here — there is no local/offline
+    // fallback. A job that only "exists" in this browser's localStorage
+    // can never be submitted/verified/released, since every one of those
+    // actions calls the real backend with a real job/milestone id.
+    const formattedMilestones = values.milestones.map((m) => ({
       title: m.title,
       description: m.description,
       amount: parseFloat(m.amount),
-      status: idx === 0 ? "IN_PROGRESS" : "LOCKED"
     }));
 
-    const newJobObj = {
-      id: newJobId,
-      title: values.title,
-      description: values.description,
-      budgetUSD: Number(values.budget),
-      budget: Number(values.budget),
-      tokenSymbol: values.tokenSymbol || "ETH",
-      skills: values.skills || [],
-      milestones: formattedMilestones,
-      duration: "4 weeks",
-      status: status === "PUBLISHED" ? "open" : "draft",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      applicants: [],
-    };
-
-    // Save to localStorage immediately so it appears across dashboard, client jobs, and bounties feed
     try {
-      const existing = JSON.parse(localStorage.getItem("w3hire_client_projects") || "[]");
-      localStorage.setItem("w3hire_client_projects", JSON.stringify([newJobObj, ...existing]));
-      window.dispatchEvent(new Event("w3hire_projects_updated"));
+      const res = await createJob(token, {
+        title: values.title,
+        description: values.description,
+        budget: Number(values.budget),
+        tokenSymbol: values.tokenSymbol,
+        skills: values.skills,
+        milestones: formattedMilestones,
+        deadline: values.deadline ? new Date(values.deadline).toISOString() : null,
+        status,
+      });
+      router.push(`/client/jobs/${res.job.id}`);
     } catch (e) {
-      console.error(e);
+      setError(apiErrorMessage(e));
+      setSubmitting(null);
     }
-
-    try {
-      const token = getAuthToken();
-      if (token) {
-        const res = await createJob(token, {
-          title: values.title,
-          description: values.description,
-          budget: Number(values.budget),
-          tokenSymbol: values.tokenSymbol,
-          skills: values.skills,
-          milestones: formattedMilestones,
-          deadline: values.deadline ? new Date(values.deadline).toISOString() : null,
-          status,
-        });
-        if (res && res.job && res.job.id) {
-          router.push(`/client/jobs/${res.job.id}`);
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn("Backend sync failed, navigating to local job view", e);
-    }
-
-    router.push(`/client/jobs/${newJobId}`);
   };
 
   if (authLoading) {

@@ -74,10 +74,14 @@ export default function JobForm({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
 
+  // Only a REAL connected wallet counts — the backend requires
+  // clientUser.walletAddress to actually be set before it will create a job,
+  // so checking user?.id (just "logged in") or the mere presence of a
+  // browser wallet extension here would let the form pass a check the
+  // backend will still reject, with no way for the user to see why.
   const isWalletConnected = Boolean(
     user?.walletAddress ||
-    user?.id ||
-    (typeof window !== "undefined" && (localStorage.getItem("w3hire_active_address") || localStorage.getItem("w3hire_auth_token") || (window as any).ethereum))
+    (typeof window !== "undefined" && localStorage.getItem("w3hire_active_address"))
   );
 
   const set = <K extends keyof JobFormValues>(key: K, value: JobFormValues[K]) => {
