@@ -2,6 +2,10 @@
 
 A full-stack web application built with **Next.js, NestJS, Prisma, and PostgreSQL (Supabase)**.
 
+## Preview
+
+![W3HIRE landing page](docs/screenshots/landing-page.png)
+
 ## Tech Stack
 
 ### Frontend
