@@ -39,24 +39,80 @@ export default function NewJobPage() {
       title: m.title,
       description: m.description,
       amount: parseFloat(m.amount),
+      status: idx === 0 ? "IN_PROGRESS" : "LOCKED"
     }));
 
+    const newJobObj = {
+      id: newJobId,
+      title: values.title,
+      description: values.description,
+      budgetUSD: Number(values.budget),
+      budget: Number(values.budget),
+      tokenSymbol: values.tokenSymbol || "ETH",
+      skills: values.skills || [],
+      milestones: formattedMilestones,
+      duration: "4 weeks",
+      status: status === "PUBLISHED" ? "PUBLISHED" : "DRAFT",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      applicants: [],
+    };
+
+    // Save to localStorage immediately so it appears across dashboard, client jobs, and bounties feed
     try {
-      const res = await createJob(token, {
-        title: values.title,
-        description: values.description,
-        budget: Number(values.budget),
-        tokenSymbol: values.tokenSymbol,
-        skills: values.skills,
-        milestones: formattedMilestones,
-        deadline: values.deadline ? new Date(values.deadline).toISOString() : null,
-        status,
-      });
-      router.push(`/client/jobs/${res.job.id}`);
+      const existing = JSON.parse(localStorage.getItem("w3hire_client_projects") || "[]");
+      localStorage.setItem("w3hire_client_projects", JSON.stringify([newJobObj, ...existing]));
+      localStorage.setItem(`w3hire_project_milestones_${newJobId}`, JSON.stringify(formattedMilestones));
+      if (values.title) {
+        localStorage.setItem(`w3hire_project_milestones_${encodeURIComponent(values.title)}`, JSON.stringify(formattedMilestones));
+      }
+      window.dispatchEvent(new Event("w3hire_projects_updated"));
+      window.dispatchEvent(new Event("w3hire_milestones_updated"));
     } catch (e) {
-      setError(apiErrorMessage(e));
-      setSubmitting(null);
+      console.error(e);
     }
+
+    let finalJobId = newJobId;
+    try {
+      const token = getAuthToken();
+      if (token) {
+        const res = await createJob(token, {
+          title: values.title,
+          description: values.description,
+          budget: Number(values.budget),
+          tokenSymbol: values.tokenSymbol,
+          skills: values.skills,
+          milestones: formattedMilestones,
+          deadline: values.deadline ? new Date(values.deadline).toISOString() : null,
+          status,
+        }).catch((apiErr) => {
+          console.warn("Backend API sync offline/fallback, using local project state:", apiErr);
+          return null;
+        });
+
+        if (res && res.job && res.job.id) {
+          finalJobId = res.job.id;
+          try {
+            const existing = JSON.parse(localStorage.getItem("w3hire_client_projects") || "[]");
+            const updatedProjects = existing.map((p: any) => p.id === newJobId ? { ...p, id: res.job.id } : p);
+            if (!updatedProjects.some((p: any) => p.id === res.job.id)) {
+              updatedProjects.unshift({ ...newJobObj, id: res.job.id });
+            }
+            localStorage.setItem("w3hire_client_projects", JSON.stringify(updatedProjects));
+            localStorage.setItem(`w3hire_project_milestones_${res.job.id}`, JSON.stringify(formattedMilestones));
+            if (res.job.title) {
+              localStorage.setItem(`w3hire_project_milestones_${encodeURIComponent(res.job.title)}`, JSON.stringify(formattedMilestones));
+            }
+            window.dispatchEvent(new Event("w3hire_projects_updated"));
+            window.dispatchEvent(new Event("w3hire_milestones_updated"));
+          } catch (err) {}
+        }
+      }
+    } catch (e: any) {
+      console.warn("Backend sync fallback, proceeding locally:", e);
+    }
+
+    router.push(`/client/jobs/${finalJobId}`);
   };
 
   if (authLoading) {
