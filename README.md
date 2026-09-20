@@ -553,6 +553,3 @@ Original repository:
 
 https://github.com/atharvaajoshii/nhce
 
-Happy coding! 🚀
-THis is a check .
-atharva joshi
